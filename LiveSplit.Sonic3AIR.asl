@@ -34,9 +34,9 @@ startup
         { 70, 12 }, { 71, 13 },
         { 40, 14 }, { 41, 15 },
         { 80, 16 }, { 81, 17 },
-        { 90, 18 }, { 91, 19 }, { 220, 19 }, // Technically, the boss battle in Lava Reef is a separate act
-        { 221, 20 }, { 100, 21 }, { 101, 21 },
-        { 110, 22 }, { 111, 23 }, { 230, 23 }, // Death Egg Act 2 has 230 during the boss battle against the giant Egg Robo
+        { 90, 18 }, { 91, 19 }, { 220, 19 },   // Technically, the boss battle in Lava Reef is a separate act
+        { 221, 20 }, { 100, 21 }, { 101, 21 }, // Double entry for Sky Sanctuary in order to include Knuckles' version
+        { 110, 22 }, { 111, 23 }, { 230, 23 }, // Death Egg Act 2 corresponds to 230 during the boss battle against the giant Egg Robo
         { 120, 24 },
         { 131, 25 } // Ending
     };
@@ -90,6 +90,7 @@ init
         { new MemoryWatcher<byte>(baseRAM + 0xEE4E) { Name = "Zone" } },
         { new MemoryWatcher<byte>(baseRAM + 0xF600) { Name = "State" } },
         { new MemoryWatcher<bool>(baseRAM + 0xFAA8) { Name = "EndOfLevelFlag" } },
+        { new MemoryWatcher<bool>(baseRAM + 0xEF72) { Name = "GameEndingFlag" } },
         { new MemoryWatcher<bool>(baseRAM + 0xF711) { Name = "LevelStarted" } },
         { new MemoryWatcher<short>(baseRAM + 0xF7D2) { Name = "TimeBonus" } },
         { new MemoryWatcher<byte>(baseRAM + 0xEF4B) { Name = "SaveSelect" } },
@@ -154,6 +155,9 @@ split
     // If current act is 0 (AIZ1 or invalid stage), there's no need to continue
     if (current.act == 0)
         return false;
+    // If current act is 21 (Sky Sanctuary) and the ending flag becomes true, trigger Knuckles' ending
+    else if (current.act == 21 && vars.watchers["GameEndingFlag"].Current && !vars.watchers["GameEndingFlag"].Old)
+        return settings["s21"];
 
     // Special Trigger for Death Egg Zone Act 2 in Act 1: in this case a split needs to be triggered when the Time Bonus drops to zero, in accordance to speedrun.com rulings
     if (old.act == 23 && vars.TimeBonusTrigger())
@@ -163,7 +167,7 @@ split
     if (old.act != current.act)
     {
         if (old.act == 0)
-            return vars.watchers["EndOfLevelFlag"].Old && settings["s" + old.act.ToString()];
+            return vars.watchers["EndOfLevelFlag"].Old && settings["s0"];
         else
             return settings["s" + old.act.ToString()];
     }
