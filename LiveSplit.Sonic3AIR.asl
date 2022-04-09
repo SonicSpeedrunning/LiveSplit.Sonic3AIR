@@ -34,7 +34,7 @@ startup
         { 70, 12 }, { 71, 13 },
         { 40, 14 }, { 41, 15 },
         { 80, 16 }, { 81, 17 },
-        { 90, 18 }, { 91, 19 }, { 220, 19 }, // Technically, the boss battle in Lava Reff is a separate act
+        { 90, 18 }, { 91, 19 }, { 220, 19 }, // Technically, the boss battle in Lava Reef is a separate act
         { 221, 20 }, { 100, 21 },
         { 110, 22 }, { 111, 23 }, { 230, 23 }, // Death Egg Act 2 has 230 during the boss battle against the giant Egg Robo
         { 120, 24 },
@@ -83,8 +83,6 @@ init
     if (baseRAM == IntPtr.Zero)
         throw new Exception();
     baseRAM += 0x400020;
-
-    print(baseRAM.ToString("X"));
 
     vars.watchers = new MemoryWatcherList
     {
