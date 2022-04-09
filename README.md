@@ -6,7 +6,7 @@ Autosplitter for Sonic 3: AIR with full support for all accepted categories on s
 
 # General behaviour
 
-Provides full support for all standard categories + categories etensions for Sonic 3: Angel Island Revisised.
+Provides full support for all standard categories + category extensions for Sonic 3: Angel Island Revisised.
 - For more info, see the <a href="https://www.speedrun.com/s3air">dedicated page</a>.
 
 Only RTA is provided by the autosplitter.
