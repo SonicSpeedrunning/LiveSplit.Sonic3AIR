@@ -35,7 +35,7 @@ startup
         { 40, 14 }, { 41, 15 },
         { 80, 16 }, { 81, 17 },
         { 90, 18 }, { 91, 19 }, { 220, 19 }, // Technically, the boss battle in Lava Reef is a separate act
-        { 221, 20 }, { 100, 21 },
+        { 221, 20 }, { 100, 21 }, { 101, 21 },
         { 110, 22 }, { 111, 23 }, { 230, 23 }, // Death Egg Act 2 has 230 during the boss battle against the giant Egg Robo
         { 120, 24 },
         { 131, 25 } // Ending
