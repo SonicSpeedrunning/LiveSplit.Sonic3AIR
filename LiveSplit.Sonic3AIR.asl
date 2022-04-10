@@ -145,11 +145,15 @@ split
     // Define current Act
     try
     {
-        current.act = vars.Acts[vars.watchers["Act"].Current + vars.watchers["Zone"].Current * 10];
+        var tempAct = vars.Acts[vars.watchers["Act"].Current + vars.watchers["Zone"].Current * 10];
+        current.act =
+            tempAct != 0 ? tempAct
+            : vars.watchers["LevelStarted"].Current ? 0
+            : old.act;
     }
     catch
     {
-        current.act = 0;
+        current.act = old.act;
     }
 
     // If current act is 0 (AIZ1 or invalid stage), there's no need to continue
