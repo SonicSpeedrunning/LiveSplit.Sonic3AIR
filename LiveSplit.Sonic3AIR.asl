@@ -71,6 +71,8 @@ startup
         { "cleanSave", "Autostart (Clean save)", "startOptions", true },
         { "angelIslandSave", "Autostart (Angel Island Zone - No clean save)", "startOptions", true },
         { "newGamePlus", "Autostart (New Game+)",  "startOptions", true },
+        { "resetOptions", "Reset options", null, true },
+        { "deleteSave", "Reset when deleting a save file", "resetOptions", true },
         { "autosplitting", "Autosplitting options", null, true },      
     };
     for (int i = 0; i < Settings.GetLength(0); i++) settings.Add(Settings[i, 0], Settings[i, 3], Settings[i, 1], Settings[i, 2]);
@@ -174,5 +176,16 @@ split
             return vars.watchers["EndOfLevelFlag"].Old && settings["s0"];
         else
             return settings["s" + old.act.ToString()];
+    }
+}
+
+reset
+{
+    if (vars.watchers["SaveSelect"].Current > 0 && vars.watchers["SaveSelect"].Current <= 8)
+    {
+        return
+            vars.watchers["SaveSlot" + (vars.watchers["SaveSelect"].Current - 1).ToString()].Old != vars.SaveSlotState.NewGame &&
+            vars.watchers["SaveSlot" + (vars.watchers["SaveSelect"].Current - 1).ToString()].Current == vars.SaveSlotState.NewGame &&
+            settings["deleteSave"];
     }
 }
