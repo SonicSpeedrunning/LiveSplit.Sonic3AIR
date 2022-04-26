@@ -133,7 +133,7 @@ start
         else
         {
             var newgamepluszoneselector = vars.watchers["ZoneSelectSlot" + (vars.watchers["SaveSelect"].Current - 1).ToString()].Current;
-            var saveslotstate = vars.watchers["SaveSlot" + (vars.watchers["SaveSelect"].Current - 1).ToString()].Old;
+            var saveslotstate = vars.watchers["SaveSlot" + (vars.watchers["SaveSelect"].Current - 1).ToString()].Current;
             if (newgamepluszoneselector == 0)
                 return
                     saveslotstate == vars.SaveSlotState.InProgress ? settings["angelIslandSave"] :
