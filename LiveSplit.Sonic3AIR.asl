@@ -146,10 +146,13 @@ start
 {
     if (vars.watchers["State"].Old == vars.State.SaveSelect && vars.watchers["State"].Current == vars.State.Loading)
     {
-        if (vars.watchers["SaveSelect"].Current == 0 && settings["noSave"])
+        if (vars.watchers["SaveSelect"].Current == 0)
         {
-            vars.DebugPrint("   => Run started: no save file");
-            return true;
+            if (settings["noSave"])
+            {
+                vars.DebugPrint("   => Run started: no save file");
+                return true;
+            }
         }
         else
         {
@@ -157,17 +160,24 @@ start
             var saveslotstate = vars.watchers["SaveSlot" + (vars.watchers["SaveSelect"].Current - 1).ToString()].Old;
             if (newgamepluszoneselector == 0)
             {
-                if (saveslotstate == vars.SaveSlotState.InProgress && settings["angelIslandSave"])
+                if (saveslotstate == vars.SaveSlotState.InProgress)
                 {
-                    vars.DebugPrint("   => Run started: non-clean save, Angel Island Zone");
-                    vars.DebugPrint("     => Save slot selected: " + vars.watchers["SaveSelect"].Current.ToString());
-                    return true;
+                    if (settings["angelIslandSave"])
+                    {
+                        vars.DebugPrint("   => Run started: non-clean save, Angel Island Zone");
+                        vars.DebugPrint("     => Save slot selected: " + vars.watchers["SaveSelect"].Current.ToString());
+                        return true;
+                    }
                 }
-                else if (saveslotstate == vars.SaveSlotState.NewGame && settings["cleanSave"])
+                else if (saveslotstate == vars.SaveSlotState.NewGame)
                 {
-                    vars.DebugPrint("   => Run started: clean save");
-                    vars.DebugPrint("     => Save slot selected: " + vars.watchers["SaveSelect"].Current.ToString());
-                    return true;
+                    if (settings["cleanSave"])
+                    {
+                        vars.DebugPrint("   => Run started: clean save");
+                        vars.DebugPrint("     => Save slot selected: " + vars.watchers["SaveSelect"].Current.ToString());
+                        return true;
+                    }
+
                 }
                 else if (settings["newGamePlus"])
                 {
