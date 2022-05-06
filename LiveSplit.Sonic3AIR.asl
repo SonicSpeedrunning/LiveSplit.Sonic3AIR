@@ -2,13 +2,13 @@
 // Original code taken from the SEGAMasterSplitter by BenInSweden
 // Recoding: Jujstme
 // contacts: just.tribe@gmail.com
-// Version: 1.0.0 (Apr 9th, 2022)
+// Version: 1.0.1 (May 5th, 2022)
 
 state("Sonic3AIR") {}
 
 startup
 {
-    string[] actsName = {
+    vars.actsName = new string[] {
         "Angel Island Zone - Act 1", "Angel Island Zone - Act 2",
         "Hydrocity Zone - Act 1", "Hydrocity Zone - Act 2",
         "Marble Garden Zone - Act 1", "Marble Garden Zone - Act 2",
@@ -77,16 +77,25 @@ startup
         { "autosplitting", "Autosplitting options", null, true },      
     };
     for (int i = 0; i < Settings.GetLength(0); i++) settings.Add(Settings[i, 0], Settings[i, 3], Settings[i, 1], Settings[i, 2]);
-    for (int i = 0; i < actsName.Length; i++) settings.Add("s" + i.ToString(), true, actsName[i], "autosplitting");
+    for (int i = 0; i < vars.actsName.Length; i++) settings.Add("s" + i.ToString(), true, vars.actsName[i], "autosplitting");
+
+    // Debug functions
+    var debug = true; // Easy flag to quickly enable and disable debug outputs
+    vars.DebugPrint = (Action<string>)((string obj) => { if (debug) print("[Sonic AIR] " + obj); });
 }
 
 init
 {
+    vars.DebugPrint("Autosplitter Init:");
+    refreshRate = 60;
+
     var baseRAM = game.MemoryPages().FirstOrDefault(p => (int)p.RegionSize == 0x521000).BaseAddress;
     if (baseRAM == IntPtr.Zero)
         throw new Exception();
     baseRAM += 0x400020;
+    vars.DebugPrint("   => Base RAM address found at 0x" + baseRAM.ToString("X"));
 
+    vars.DebugPrint("   => Setting up MemoryWatchers...");
     vars.watchers = new MemoryWatcherList
     {
         { new MemoryWatcher<byte>(baseRAM + 0xEE4F) { Name = "Act" } },
@@ -97,54 +106,24 @@ init
         { new MemoryWatcher<bool>(baseRAM + 0xF711) { Name = "LevelStarted" } },
         { new MemoryWatcher<short>(baseRAM + 0xF7D2) { Name = "TimeBonus" } },
         { new MemoryWatcher<byte>(baseRAM + 0xEF4B) { Name = "SaveSelect" } },
-        { new MemoryWatcher<byte>(baseRAM + 0xB15F + 0x4A * 0) { Name = "ZoneSelectSlot0" } },
-        { new MemoryWatcher<byte>(baseRAM + 0xB15F + 0x4A * 1) { Name = "ZoneSelectSlot1" } },
-        { new MemoryWatcher<byte>(baseRAM + 0xB15F + 0x4A * 2) { Name = "ZoneSelectSlot2" } },
-        { new MemoryWatcher<byte>(baseRAM + 0xB15F + 0x4A * 3) { Name = "ZoneSelectSlot3" } },
-        { new MemoryWatcher<byte>(baseRAM + 0xB15F + 0x4A * 4) { Name = "ZoneSelectSlot4" } },
-        { new MemoryWatcher<byte>(baseRAM + 0xB15F + 0x4A * 5) { Name = "ZoneSelectSlot5" } },
-        { new MemoryWatcher<byte>(baseRAM + 0xB15F + 0x4A * 6) { Name = "ZoneSelectSlot6" } },
-        { new MemoryWatcher<byte>(baseRAM + 0xB15F + 0x4A * 7) { Name = "ZoneSelectSlot7" } },
-        { new MemoryWatcher<byte>(baseRAM + 0xE6AC + 0xA * 0) { Name = "SaveSlot0" } },
-        { new MemoryWatcher<byte>(baseRAM + 0xE6AC + 0xA * 1) { Name = "SaveSlot1" } },
-        { new MemoryWatcher<byte>(baseRAM + 0xE6AC + 0xA * 2) { Name = "SaveSlot2" } },
-        { new MemoryWatcher<byte>(baseRAM + 0xE6AC + 0xA * 3) { Name = "SaveSlot3" } },
-        { new MemoryWatcher<byte>(baseRAM + 0xE6AC + 0xA * 4) { Name = "SaveSlot4" } },
-        { new MemoryWatcher<byte>(baseRAM + 0xE6AC + 0xA * 5) { Name = "SaveSlot5" } },
-        { new MemoryWatcher<byte>(baseRAM + 0xE6AC + 0xA * 6) { Name = "SaveSlot6" } },
-        { new MemoryWatcher<byte>(baseRAM + 0xE6AC + 0xA * 7) { Name = "SaveSlot7" } },
     };
+    for (int i = 0; i < 8; i++)
+    {
+        vars.watchers.Add(new MemoryWatcher<byte>(baseRAM + 0xB15F + 0x4A * i) { Name = "ZoneSelectSlot" + i.ToString() });
+        vars.watchers.Add(new MemoryWatcher<byte>(baseRAM + 0xE6AC + 0xA * i) { Name = "SaveSlot" + i.ToString() });
+    }
+
+    vars.DebugPrint("     => Done");
 
     // Default act
     current.act = 0;
+    vars.DebugPrint("   => Init script completed");
 }
 
 update
 {
     vars.watchers.UpdateAll(game);
-}
 
-start
-{
-    if (vars.watchers["State"].Old == vars.State.SaveSelect && vars.watchers["State"].Current == vars.State.Loading)
-    {
-        if (vars.watchers["SaveSelect"].Current == 0)
-            return settings["noSave"];
-        else
-        {
-            var newgamepluszoneselector = vars.watchers["ZoneSelectSlot" + (vars.watchers["SaveSelect"].Current - 1).ToString()].Current;
-            var saveslotstate = vars.watchers["SaveSlot" + (vars.watchers["SaveSelect"].Current - 1).ToString()].Current;
-            if (newgamepluszoneselector == 0)
-                return
-                    saveslotstate == vars.SaveSlotState.InProgress ? settings["angelIslandSave"] :
-                    saveslotstate == vars.SaveSlotState.NewGame ? settings["cleanSave"] :
-                    settings["newGamePlus"];
-        }
-    }
-}
-
-split
-{
     // Define current Act
     try
     {
@@ -159,24 +138,81 @@ split
         current.act = old.act;
     }
 
+    if (current.act != old.act && current.act < vars.actsName.Length)
+        vars.DebugPrint("   => Act changed - current act is: " + vars.actsName[current.act]);
+}
+
+start
+{
+    if (vars.watchers["State"].Old == vars.State.SaveSelect && vars.watchers["State"].Current == vars.State.Loading)
+    {
+        if (vars.watchers["SaveSelect"].Current == 0 && settings["noSave"])
+        {
+            vars.DebugPrint("   => Run started: no save file");
+            return true;
+        }
+        else
+        {
+            var newgamepluszoneselector = vars.watchers["ZoneSelectSlot" + (vars.watchers["SaveSelect"].Current - 1).ToString()].Current;
+            var saveslotstate = vars.watchers["SaveSlot" + (vars.watchers["SaveSelect"].Current - 1).ToString()].Old;
+            if (newgamepluszoneselector == 0)
+            {
+                if (saveslotstate == vars.SaveSlotState.InProgress && settings["angelIslandSave"])
+                {
+                    vars.DebugPrint("   => Run started: non-clean save, Angel Island Zone");
+                    vars.DebugPrint("     => Save slot selected: " + vars.watchers["SaveSelect"].Current.ToString());
+                    return true;
+                }
+                else if (saveslotstate == vars.SaveSlotState.NewGame && settings["cleanSave"])
+                {
+                    vars.DebugPrint("   => Run started: clean save");
+                    vars.DebugPrint("     => Save slot selected: " + vars.watchers["SaveSelect"].Current.ToString());
+                    return true;
+                }
+                else if (settings["newGamePlus"])
+                {
+                    vars.DebugPrint("   => Run started: new game+");
+                    vars.DebugPrint("     => Save slot selected: " + vars.watchers["SaveSelect"].Current.ToString());
+                    return true;
+                }
+            }
+        }
+    }
+}
+
+split
+{
     // If current act is 0 (AIZ1 or invalid stage), there's no need to continue
     if (current.act == 0)
         return false;
+
     // If current act is 21 (Sky Sanctuary) and the ending flag becomes true, trigger Knuckles' ending
-    else if (current.act == 21 && vars.watchers["GameEndingFlag"].Current && !vars.watchers["GameEndingFlag"].Old)
-        return settings["s21"];
+    else if (settings["s21"] && current.act == 21 && vars.watchers["GameEndingFlag"].Current && !vars.watchers["GameEndingFlag"].Old )
+    {
+        vars.DebugPrint("   => Run split - previous act was: Sky Sanctuary (Knuckles' Ending)");
+        return true;
+    }
 
     // Special Trigger for Death Egg Zone Act 2 in Act 1: in this case a split needs to be triggered when the Time Bonus drops to zero, in accordance to speedrun.com rulings
-    if (old.act == 23 && vars.TimeBonusTrigger())
-        return settings["s23"];
+    if (settings["s23"] && old.act == 23 && vars.TimeBonusTrigger())
+    {
+        vars.DebugPrint("   => Run split - previous act was: " + vars.actsName[old.act]);
+        return true;
+    }
 
     // Normal splitting condition: trigger a split whenever the act changes
     if (old.act != current.act)
     {
-        if (old.act == 0)
-            return vars.watchers["EndOfLevelFlag"].Old && settings["s0"];
-        else
-            return settings["s" + old.act.ToString()];
+        if (settings["s0"] && vars.watchers["EndOfLevelFlag"].Old && old.act == 0)
+        {
+            vars.DebugPrint("   => Run split - previous act was: " + vars.actsName[old.act]);
+            return true;
+        }
+        else if (settings["s" + old.act.ToString()])
+        {
+            vars.DebugPrint("   => Run split - previous act was: " + vars.actsName[old.act]);
+            return true;
+        }
     }
 }
 
@@ -184,16 +220,23 @@ reset
 {
     if (vars.watchers["SaveSelect"].Current == 0)
     {
-        return
-            vars.watchers["State"].Old == vars.State.SaveSelect &&
+        if (vars.watchers["State"].Old == vars.State.SaveSelect &&
             vars.watchers["State"].Current == vars.State.Loading &&
-            settings["resetOnNoSave"];
+            settings["resetOnNoSave"])
+        {
+            vars.DebugPrint("   => Run reset: selected no-save run");
+            return true;
+        }
     }
     else if (vars.watchers["SaveSelect"].Current > 0 && vars.watchers["SaveSelect"].Current <= 8)
     {
-        return
-            vars.watchers["SaveSlot" + (vars.watchers["SaveSelect"].Current - 1).ToString()].Old != vars.SaveSlotState.NewGame &&
+        if (vars.watchers["SaveSlot" + (vars.watchers["SaveSelect"].Current - 1).ToString()].Old != vars.SaveSlotState.NewGame &&
             vars.watchers["SaveSlot" + (vars.watchers["SaveSelect"].Current - 1).ToString()].Current == vars.SaveSlotState.NewGame &&
-            settings["deleteSave"];
+            settings["deleteSave"])
+        {
+            vars.DebugPrint("   => Run reset: deleted save file");
+            vars.DebugPrint("     => Save slot selected: " + vars.watchers["SaveSelect"].Current.ToString());
+            return true;
+        }
     }
 }
