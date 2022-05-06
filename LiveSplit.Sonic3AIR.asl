@@ -239,7 +239,7 @@ reset
             return true;
         }
     }
-    else if (vars.watchers["SaveSelect"].Current > 0 && vars.watchers["SaveSelect"].Current <= 8)
+    else if (vars.watchers["SaveSelect"].Current > 0 && vars.watchers["SaveSelect"].Current <= 8 && !vars.watchers["SaveSelect"].Changed)
     {
         if (vars.watchers["SaveSlot" + (vars.watchers["SaveSelect"].Current - 1).ToString()].Old != vars.SaveSlotState.NewGame &&
             vars.watchers["SaveSlot" + (vars.watchers["SaveSelect"].Current - 1).ToString()].Current == vars.SaveSlotState.NewGame &&
