@@ -88,7 +88,7 @@ init
 {
     vars.DebugPrint("Autosplitter Init:");
     refreshRate = 60;
-    timer.Settings.RefreshRate = 60;
+    // timer.Settings.RefreshRate = 60;
 
     var baseRAM = game.MemoryPages().FirstOrDefault(p => (int)p.RegionSize == 0x521000).BaseAddress;
     if (baseRAM == IntPtr.Zero)
