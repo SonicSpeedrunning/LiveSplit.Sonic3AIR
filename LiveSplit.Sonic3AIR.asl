@@ -87,7 +87,7 @@ startup
 init
 {
     vars.DebugPrint("Autosplitter Init:");
-    refreshRate = 60;
+    // refreshRate = 60;
     // timer.Settings.RefreshRate = 60;
 
     var baseRAM = game.MemoryPages().FirstOrDefault(p => (int)p.RegionSize == 0x521000).BaseAddress;
@@ -118,12 +118,17 @@ init
 
     // Default act
     current.act = 0;
+    current.state = 0;
     vars.DebugPrint("   => Init script completed");
 }
 
 update
 {
     vars.watchers.UpdateAll(game);
+
+    // Filtered state variable (used in order to fix a bug that will otherwise appear with the start trigger)
+    if (vars.watchers["State"].Current != vars.State.InGame)
+        current.state = vars.watchers["State"].Current;
 
     // Define current Act
     try
@@ -145,7 +150,7 @@ update
 
 start
 {
-    if (vars.watchers["State"].Old == vars.State.SaveSelect && vars.watchers["State"].Current == vars.State.Loading)
+    if (old.state == vars.State.SaveSelect && current.state == vars.State.Loading)
     {
         if (vars.watchers["SaveSelect"].Current == 0)
         {
