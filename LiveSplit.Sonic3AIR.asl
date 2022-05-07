@@ -2,12 +2,14 @@
 // Original code taken from the SEGAMasterSplitter by BenInSweden
 // Recoding: Jujstme
 // contacts: just.tribe@gmail.com
-// Version: 1.0.1 (May 5th, 2022)
+// Version: 1.0.2 (May 7th, 2022)
 
 state("Sonic3AIR") {}
 
 startup
 {
+    // Array containing the name of every act
+    // This is used both in the settings and for debug purposes
     vars.actsName = new string[] {
         "Angel Island Zone - Act 1", "Angel Island Zone - Act 2",
         "Hydrocity Zone - Act 1", "Hydrocity Zone - Act 2",
@@ -24,6 +26,10 @@ startup
         "Doomsday Zone"
     };
 
+    // Dictionary used to associate the game's internal ID of each act
+    // with the index we are going to use in the autosplitter.
+    // ID 25 (Sonic's ending) is not defined in vars.actsName so this
+    // needs special care in the script in order to avoid exceptions.
     vars.Acts = new Dictionary<int, byte>{
         { 0,   0 }, { 1,   1 },
         { 10,  2 }, { 11,  3 },
@@ -41,7 +47,7 @@ startup
         { 131, 25 } // Ending
     };
 
-    // Makeshift enums important state variables
+    // Makeshift enums used for important state variables
     vars.State = new ExpandoObject();
     vars.State.SaveSelect = 0x4C;
     vars.State.Loading = 0x8C;
@@ -49,6 +55,7 @@ startup
     vars.State.SpecialStage = 0x34;
     vars.State.ExitingSpecialStage = 0x48;
 
+    // IDs used by the game to define the state of the save slots
     vars.SaveSlotState = new ExpandoObject();
     vars.SaveSlotState.NewGame = 0x80;
     vars.SaveSlotState.InProgress = 0x00;
@@ -56,14 +63,19 @@ startup
     vars.SaveSlotState.CompleteWithEmeralds = 0x02;
     vars.SaveSlotState.CompleteWithSuperEmeralds = 0x03;
 
-    // Custom functions
+    //// Custom functions
+    // The memory region used in S3AIR is in Big Endian so we need this every time we want to convert a 16-bit int
     vars.ToLittleEndian = (Func<short, short>)(input => {
         byte[] temp = BitConverter.GetBytes(input);
         Array.Reverse(temp);
         return BitConverter.ToInt16(temp, 0);
     });
+
+    // TimeBonus Trigger: it returns true whenever the time bonus drops to zero during the score tally. This is useful in some specific instances during the run
     vars.TimeBonusTrigger = (Func<bool>)(() => vars.ToLittleEndian(vars.watchers["TimeBonus"].Old) != 0 && vars.ToLittleEndian(vars.watchers["TimeBonus"].Current) == 0 && vars.watchers["EndOfLevelFlag"].Current);
 
+    // Settings
+    // --> ID, Setting name, parent, enabled
     dynamic[,] Settings =
     {
         { "startOptions", "Auto start settings", null, true },
@@ -76,11 +88,12 @@ startup
         { "resetOnNoSave", "Reset when starting a new game without selecting a save", "resetOptions", true },
         { "autosplitting", "Autosplitting options", null, true },      
     };
+    // Autobuild the settings based on the info provided above
     for (int i = 0; i < Settings.GetLength(0); i++) settings.Add(Settings[i, 0], Settings[i, 3], Settings[i, 1], Settings[i, 2]);
     for (int i = 0; i < vars.actsName.Length; i++) settings.Add("s" + i.ToString(), true, vars.actsName[i], "autosplitting");
 
     // Debug functions
-    var debug = true; // Easy flag to quickly enable and disable debug outputs
+    var debug = true; // Easy flag to quickly enable and disable debug outputs. When they're not needed anymore all it takes is to set this to false.
     vars.DebugPrint = (Action<string>)((string obj) => { if (debug) print("[Sonic AIR] " + obj); });
 }
 
@@ -90,6 +103,8 @@ init
     // refreshRate = 60;
     // timer.Settings.RefreshRate = 60;
 
+    // Stolen from BenInSweden's SEGAMasterSplitter to easily find the base address of the emulated ram
+    // (is it ok to say "emulated ram" though?)
     var baseRAM = game.MemoryPages().FirstOrDefault(p => (int)p.RegionSize == 0x521000).BaseAddress;
     if (baseRAM == IntPtr.Zero)
         throw new Exception();
@@ -97,40 +112,48 @@ init
     vars.DebugPrint("   => Base RAM address found at 0x" + baseRAM.ToString("X"));
 
     vars.DebugPrint("   => Setting up MemoryWatchers...");
-    vars.watchers = new MemoryWatcherList
-    {
-        { new MemoryWatcher<byte>(baseRAM + 0xEE4F) { Name = "Act" } },
-        { new MemoryWatcher<byte>(baseRAM + 0xEE4E) { Name = "Zone" } },
-        { new MemoryWatcher<byte>(baseRAM + 0xF600) { Name = "State" } },
-        { new MemoryWatcher<bool>(baseRAM + 0xFAA8) { Name = "EndOfLevelFlag" } },
-        { new MemoryWatcher<bool>(baseRAM + 0xEF72) { Name = "GameEndingFlag" } },
-        { new MemoryWatcher<bool>(baseRAM + 0xF711) { Name = "LevelStarted" } },
-        { new MemoryWatcher<short>(baseRAM + 0xF7D2) { Name = "TimeBonus" } },
-        { new MemoryWatcher<byte>(baseRAM + 0xEF4B) { Name = "SaveSelect" } },
-    };
+    vars.watchers = new MemoryWatcherList();
+    vars.watchers.Add(new MemoryWatcher<byte>(baseRAM + 0xEE4F) { Name = "Act" });
+    vars.watchers.Add(new MemoryWatcher<byte>(baseRAM + 0xEE4E) { Name = "Zone" });
+    vars.watchers.Add(new MemoryWatcher<byte>(baseRAM + 0xF600) { Name = "State" });
+    vars.watchers.Add(new MemoryWatcher<bool>(baseRAM + 0xFAA8) { Name = "EndOfLevelFlag" });
+    vars.watchers.Add(new MemoryWatcher<bool>(baseRAM + 0xEF72) { Name = "GameEndingFlag" });
+    vars.watchers.Add(new MemoryWatcher<bool>(baseRAM + 0xF711) { Name = "LevelStarted" });
+    vars.watchers.Add(new MemoryWatcher<short>(baseRAM + 0xF7D2) { Name = "TimeBonus" });
+    vars.watchers.Add(new MemoryWatcher<byte>(baseRAM + 0xEF4B) { Name = "SaveSelect" });
     for (int i = 0; i < 8; i++)
     {
         vars.watchers.Add(new MemoryWatcher<byte>(baseRAM + 0xB15F + 0x4A * i) { Name = "ZoneSelectSlot" + i.ToString() });
         vars.watchers.Add(new MemoryWatcher<byte>(baseRAM + 0xE6AC + 0xA * i) { Name = "SaveSlot" + i.ToString() });
     }
-
     vars.DebugPrint("     => Done");
 
     // Default act
+    vars.DebugPrint("   => Setting up default state variables...");
     current.act = 0;
     current.state = 0;
+    current.saveslotstate = vars.SaveSlotState.InProgress;
+    vars.DebugPrint("     => Done");
     vars.DebugPrint("   => Init script completed");
 }
 
 update
 {
+    // Update the watchers
     vars.watchers.UpdateAll(game);
 
-    // Filtered state variable (used in order to fix a bug that will otherwise appear with the start trigger)
+    // Filtered state variables. They essentially exclude vars.State.InGame
+    // Used in order to fix a couple of bugs that will otherwise appear with the start trigger
     if (vars.watchers["State"].Current != vars.State.InGame)
+    {
         current.state = vars.watchers["State"].Current;
+        if (vars.watchers["SaveSelect"].Current > 0 && vars.watchers["SaveSelect"].Current <= 8)
+            current.saveslotstate = vars.watchers["SaveSlot" + (vars.watchers["SaveSelect"].Current - 1).ToString()].Current;
+    }
 
     // Define current Act
+    // As act = 0 can both mean Angel Island Act 1 and main menu, we need to check if the LevelStarted flag is set.
+    // If it's not, keep the old value (old.act) in order to allow splitting after returning to the main menu.
     try
     {
         var tempAct = vars.Acts[vars.watchers["Act"].Current + vars.watchers["Zone"].Current * 10];
@@ -144,6 +167,7 @@ update
         current.act = old.act;
     }
 
+    // Debug output. It will state which act we're in whenever the value changes.
     if (current.act != old.act && current.act < vars.actsName.Length)
         vars.DebugPrint("   => Act changed - current act is: " + vars.actsName[current.act]);
 }
@@ -162,11 +186,9 @@ start
         }
         else
         {
-            var newgamepluszoneselector = vars.watchers["ZoneSelectSlot" + (vars.watchers["SaveSelect"].Current - 1).ToString()].Current;
-            var saveslotstate = vars.watchers["SaveSlot" + (vars.watchers["SaveSelect"].Current - 1).ToString()].Old;
-            if (newgamepluszoneselector == 0)
+            if (vars.watchers["ZoneSelectSlot" + (vars.watchers["SaveSelect"].Current - 1).ToString()].Current == 0)
             {
-                if (saveslotstate == vars.SaveSlotState.InProgress)
+                if (old.saveslotstate == vars.SaveSlotState.InProgress)
                 {
                     if (settings["angelIslandSave"])
                     {
@@ -175,7 +197,7 @@ start
                         return true;
                     }
                 }
-                else if (saveslotstate == vars.SaveSlotState.NewGame)
+                else if (old.saveslotstate == vars.SaveSlotState.NewGame)
                 {
                     if (settings["cleanSave"])
                     {
